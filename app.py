@@ -1,11 +1,22 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-from ahp_core import calculate_ahp
+import matplotlib.pyplot as plt
+from ahp_core import calculate_ahp # Assurez-vous que cette fonction est dans ahp_core.py
 
 # --- Configuration et Titre ---
 st.set_page_config(layout="wide")
-st.title("🧮 Calculatrice AHP (Analytic Hierarchy Process)")
+
+# Utilisation de colonnes pour placer le titre à gauche et le nom à droite
+col_title, col_name = st.columns([4, 1])
+
+with col_title:
+    st.title("🧮 Calculatrice AHP (Analytic Hierarchy Process)")
+
+with col_name:
+    # Affichage du nom plus petit et aligné à droite
+    st.markdown("<h4 style='text-align: right; font-size: 14px;'>Développé par:<br>Belkounso Achraf</h4>", unsafe_allow_html=True)
+
 st.caption("Application interne pour l'aide à la décision multicritère")
 
 # --- Étape 1 : Saisie des Éléments (Critères ou Alternatives) ---
@@ -36,6 +47,7 @@ else:
     df_input = pd.DataFrame(index=elements, columns=elements)
 
     with st.form("ahp_input_form"):
+        # Nous utilisons le même nombre de colonnes que le nombre d'éléments pour une meilleure disposition
         cols = st.columns(n)
         
         # Boucle pour la saisie interactive des inputs (seulement i < j)
@@ -90,15 +102,42 @@ else:
         
         st.dataframe(df_results, hide_index=True)
         
-        # 3.3 Visualisation Graphique
+        # --- NOUVEAU : 3.3 Conclusion du Classement ---
+        st.subheader("Conclusion du Classement 🥇")
+        
+        # Le premier élément après le tri est le vainqueur
+        top_element = df_results.iloc[0]['Élément']
+        top_score = df_results.iloc[0]['Poids (%)']
+        
+        # Affichage de la conclusion
+        st.markdown(f"""
+        L'analyse AHP est complétée. Le classement final montre que **{top_element}**
+        est l'élément prioritaire avec un score de **{top_score}**.
+        
+        ---
+        
+        **Recommandation :** C'est l'élément qui correspond le mieux aux jugements exprimés dans la matrice.
+        """)
+
+
+        # 3.4 Visualisation Graphique (Améliorée)
         st.subheader("Visualisation des Poids")
         
-        # Utilisez Matplotlib pour un graphique simple (facile avec Streamlit)
-        import matplotlib.pyplot as plt
+        # On s'assure d'utiliser les couleurs du classement
+        # On utilise une palette de couleurs basée sur le classement
+        num_elements = len(df_results)
+        colors = [('skyblue' if i < 1 else 'lightcoral' if i == num_elements - 1 else 'lightgreen') for i in range(num_elements)]
+
         fig, ax = plt.subplots()
-        ax.bar(df_results['Élément'], df_results['Poids (Priorité)'], color=['skyblue', 'lightcoral', 'lightgreen', 'gold'])
+        ax.bar(df_results['Élément'], df_results['Poids (Priorité)'], color=colors)
         ax.set_ylabel('Priorité / Poids')
         ax.set_title('Distribution des Poids AHP')
         plt.xticks(rotation=45, ha='right')
         plt.tight_layout()
         st.pyplot(fig)
+        
+        # Option d'impression simple
+        st.markdown("---")
+        if st.button("Imprimer la page de Résultats (Ctrl+P ou Cmd+P)"):
+            st.balloons()
+            st.toast("Utilisez la fonction d'impression de votre navigateur pour générer le PDF.")
