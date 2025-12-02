@@ -1,23 +1,11 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from ahp_core import calculate_ahp # Assurez-vous que cette fonction est dans ahp_core.py
+from ahp_core import calculate_ahp
 
 # --- Configuration et Titre ---
 st.set_page_config(layout="wide")
-
-# Utilisation de colonnes pour placer le titre à gauche et le nom à droite
-col_title, col_name = st.columns([4, 1])
-
-with col_title:
-    st.title("🧮 Calculatrice AHP (Analytic Hierarchy Process)")
-
-with col_name:
-    # Affichage du nom plus petit et aligné à droite
-    # J'ajoute margin-top: 15px pour un meilleur alignement vertical
-    st.markdown("<div style='text-align: right; margin-top: 15px;'><h4 style='font-size: 14px;'>Développé par:<br>Belkounso Achraf</h4></div>", unsafe_allow_html=True)
-
+st.title("🧮 Calculatrice AHP (Analytic Hierarchy Process)")
 st.caption("Application interne pour l'aide à la décision multicritère")
 
 # --- Étape 1 : Saisie des Éléments (Critères ou Alternatives) ---
@@ -44,58 +32,32 @@ else:
     # Initialisation de la matrice de comparaison
     matrix = np.ones((n, n), dtype=float)
     
-    # Dictionnaire pour stocker les valeurs saisies par l'utilisateur
-    input_values = {}
+    # Création d'une interface de tableau pour la saisie
+    df_input = pd.DataFrame(index=elements, columns=elements)
 
     with st.form("ahp_input_form"):
+        cols = st.columns(n)
         
-        st.markdown("---") # Séparateur pour la clarté
-        
-        # Boucle de saisie stable
+        # Boucle pour la saisie interactive des inputs (seulement i < j)
         for i in range(n):
             for j in range(i + 1, n):
-                
-                # --- Crée une ligne de saisie pour la comparaison i vs j ---
-                col_left, col_input, col_right = st.columns([1, 2, 1])
-                
-                with col_left:
-                    st.markdown(f"**{elements[i]}**")
-                
-                with col_input:
-                    key_id = f"input_{i}_{j}"
-                    
-                    # On utilise l'état de session si la valeur a déjà été soumise
-                    if key_id not in st.session_state:
-                         st.session_state[key_id] = 1.0 # Valeur par défaut
-                         
+                # La comparaison C_i vs C_j
+                with cols[j]:
+                    # Utilisez une clé unique pour chaque widget Streamlit
                     value = st.number_input(
-                        f"Comparaison : {elements[i]} par rapport à {elements[j]}", 
-                        min_value=1.0/9.0, max_value=9.0, value=st.session_state[key_id], 
+                        f"{elements[i]} vs {elements[j]}", 
+                        min_value=1.0/9.0, max_value=9.0, value=1.0, 
                         step=0.01, format="%.2f", 
-                        key=key_id,
-                        label_visibility="collapsed" # Cache le label pour plus de compacité
+                        key=f"input_{i}_{j}"
                     )
-                    # La valeur est automatiquement mise à jour dans st.session_state[key_id] par Streamlit
-                    
-                with col_right:
-                    inverse_val = 1.0 / value if value != 0 else 9.0 
-                    st.markdown(f"**{elements[j]}** (Inverse: {inverse_val:.2f})")
-                
-                st.markdown("---") # Séparateur entre les comparaisons
+                    # Mise à jour de la matrice
+                    matrix[i, j] = value
+                    matrix[j, i] = 1.0 / value  # Réciproque
 
         submitted = st.form_submit_button("Calculer les Poids et la Cohérence")
 
     # --- Étape 3 : Affichage des Résultats ---
     if submitted:
-        # Reconstruire la matrice complète à partir de st.session_state (plus fiable que le dictionnaire input_values)
-        for i in range(n):
-            for j in range(i + 1, n):
-                key_id = f"input_{i}_{j}"
-                # La valeur est stockée dans st.session_state[key_id]
-                value = st.session_state[key_id]
-                matrix[i, j] = value
-                matrix[j, i] = 1.0 / value  # Réciproque
-
         st.header("3. Résultats de l'Analyse AHP")
         
         # Affichage de la Matrice construite
@@ -128,42 +90,15 @@ else:
         
         st.dataframe(df_results, hide_index=True)
         
-        # --- NOUVEAU : 3.3 Conclusion du Classement ---
-        st.subheader("Conclusion du Classement 🥇")
-        
-        # Le premier élément après le tri est le vainqueur
-        top_element = df_results.iloc[0]['Élément']
-        top_score = df_results.iloc[0]['Poids (%)']
-        
-        # Affichage de la conclusion
-        st.markdown(f"""
-        L'analyse AHP est complétée. Le classement final montre que **{top_element}**
-        est l'élément prioritaire avec un score de **{top_score}**.
-        
-        ---
-        
-        **Recommandation :** C'est l'élément qui correspond le mieux aux jugements exprimés dans la matrice.
-        """)
-
-
-        # 3.4 Visualisation Graphique (Améliorée)
+        # 3.3 Visualisation Graphique
         st.subheader("Visualisation des Poids")
         
-        # On s'assure d'utiliser les couleurs du classement
-        # On utilise une palette de couleurs basée sur le classement
-        num_elements = len(df_results)
-        colors = [('skyblue' if i < 1 else 'lightcoral' if i == num_elements - 1 else 'lightgreen') for i in range(num_elements)]
-
+        # Utilisez Matplotlib pour un graphique simple (facile avec Streamlit)
+        import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
-        ax.bar(df_results['Élément'], df_results['Poids (Priorité)'], color=colors)
+        ax.bar(df_results['Élément'], df_results['Poids (Priorité)'], color=['skyblue', 'lightcoral', 'lightgreen', 'gold'])
         ax.set_ylabel('Priorité / Poids')
         ax.set_title('Distribution des Poids AHP')
         plt.xticks(rotation=45, ha='right')
         plt.tight_layout()
         st.pyplot(fig)
-        
-        # Option d'impression simple
-        st.markdown("---")
-        if st.button("Imprimer la page de Résultats (Ctrl+P ou Cmd+P)"):
-            st.balloons()
-            st.toast("Utilisez la fonction d'impression de votre navigateur pour générer le PDF.")
