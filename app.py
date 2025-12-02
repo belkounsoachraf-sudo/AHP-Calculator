@@ -15,7 +15,8 @@ with col_title:
 
 with col_name:
     # Affichage du nom plus petit et aligné à droite
-    st.markdown("<h4 style='text-align: right; font-size: 14px;'>Développé par:<br>Belkounso Achraf</h4>", unsafe_allow_html=True)
+    # J'ajoute margin-top: 15px pour un meilleur alignement vertical
+    st.markdown("<div style='text-align: right; margin-top: 15px;'><h4 style='font-size: 14px;'>Développé par:<br>Belkounso Achraf</h4></div>", unsafe_allow_html=True)
 
 st.caption("Application interne pour l'aide à la décision multicritère")
 
@@ -47,29 +48,56 @@ else:
     df_input = pd.DataFrame(index=elements, columns=elements)
 
     with st.form("ahp_input_form"):
-        # Nous utilisons le même nombre de colonnes que le nombre d'éléments pour une meilleure disposition
-        cols = st.columns(n)
+        
+        st.markdown("---") # Séparateur pour la clarté
+
+        # Dictionnaire pour stocker les valeurs saisies avant de reconstruire la matrice
+        input_values = {}
         
         # Boucle pour la saisie interactive des inputs (seulement i < j)
         for i in range(n):
             for j in range(i + 1, n):
-                # La comparaison C_i vs C_j
-                with cols[j]:
-                    # Utilisez une clé unique pour chaque widget Streamlit
+                
+                # --- Crée une ligne de saisie pour la comparaison i vs j ---
+                col_left, col_input, col_right = st.columns([1, 2, 1])
+                
+                # Affiche l'élément de gauche
+                with col_left:
+                    st.markdown(f"**{elements[i]}**")
+                
+                # Saisie du jugement (i par rapport à j)
+                with col_input:
+                    key_id = f"input_{i}_{j}"
+                    
                     value = st.number_input(
-                        f"{elements[i]} vs {elements[j]}", 
+                        f"Comparaison : {elements[i]} par rapport à {elements[j]}", 
                         min_value=1.0/9.0, max_value=9.0, value=1.0, 
                         step=0.01, format="%.2f", 
-                        key=f"input_{i}_{j}"
+                        key=key_id,
+                        label_visibility="collapsed" # Cache le label pour plus de compacité
                     )
-                    # Mise à jour de la matrice
-                    matrix[i, j] = value
-                    matrix[j, i] = 1.0 / value  # Réciproque
+                    input_values[key_id] = value # Stocke la valeur pour la reconstruction
+
+                # Affiche l'élément de droite (et son inverse)
+                with col_right:
+                    # Pour éviter l'erreur de division par zéro
+                    inverse_val = 1.0 / value if value != 0 else 9.0 
+                    st.markdown(f"**{elements[j]}** (Inverse: {inverse_val:.2f})")
+                
+                st.markdown("---") # Séparateur entre les comparaisons
 
         submitted = st.form_submit_button("Calculer les Poids et la Cohérence")
 
     # --- Étape 3 : Affichage des Résultats ---
     if submitted:
+        # Reconstruire la matrice complète à partir des inputs (car Streamlit réexécute le script)
+        for i in range(n):
+            for j in range(i + 1, n):
+                key_id = f"input_{i}_{j}"
+                value = input_values[key_id]
+                matrix[i, j] = value
+                matrix[j, i] = 1.0 / value  # Réciproque
+
         st.header("3. Résultats de l'Analyse AHP")
         
         # Affichage de la Matrice construite
