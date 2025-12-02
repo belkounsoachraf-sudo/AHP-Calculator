@@ -79,7 +79,7 @@ if submitted:
     st.info(f"$$\\lambda_{{\\text{{max}}}} = {results['lambda_max']:.4f}$$")
     
 
-[Image of Eigenvalue formula]
+
 
     
     # Affichage du Vecteur Propre brut (non normalisé)
@@ -151,4 +151,5 @@ if submitted:
     ax.set_title('Distribution Finale des Priorités AHP')
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()
+
     st.pyplot(fig)
