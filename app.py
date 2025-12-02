@@ -44,43 +44,40 @@ else:
     # Initialisation de la matrice de comparaison
     matrix = np.ones((n, n), dtype=float)
     
-    # Création d'une interface de tableau pour la saisie
-    df_input = pd.DataFrame(index=elements, columns=elements)
+    # Dictionnaire pour stocker les valeurs saisies par l'utilisateur
+    input_values = {}
 
     with st.form("ahp_input_form"):
         
         st.markdown("---") # Séparateur pour la clarté
-
-        # Dictionnaire pour stocker les valeurs saisies avant de reconstruire la matrice
-        input_values = {}
         
-        # Boucle pour la saisie interactive des inputs (seulement i < j)
+        # Boucle de saisie stable
         for i in range(n):
             for j in range(i + 1, n):
                 
                 # --- Crée une ligne de saisie pour la comparaison i vs j ---
                 col_left, col_input, col_right = st.columns([1, 2, 1])
                 
-                # Affiche l'élément de gauche
                 with col_left:
                     st.markdown(f"**{elements[i]}**")
                 
-                # Saisie du jugement (i par rapport à j)
                 with col_input:
                     key_id = f"input_{i}_{j}"
                     
+                    # On utilise l'état de session si la valeur a déjà été soumise
+                    if key_id not in st.session_state:
+                         st.session_state[key_id] = 1.0 # Valeur par défaut
+                         
                     value = st.number_input(
                         f"Comparaison : {elements[i]} par rapport à {elements[j]}", 
-                        min_value=1.0/9.0, max_value=9.0, value=1.0, 
+                        min_value=1.0/9.0, max_value=9.0, value=st.session_state[key_id], 
                         step=0.01, format="%.2f", 
                         key=key_id,
                         label_visibility="collapsed" # Cache le label pour plus de compacité
                     )
-                    input_values[key_id] = value # Stocke la valeur pour la reconstruction
-
-                # Affiche l'élément de droite (et son inverse)
+                    # La valeur est automatiquement mise à jour dans st.session_state[key_id] par Streamlit
+                    
                 with col_right:
-                    # Pour éviter l'erreur de division par zéro
                     inverse_val = 1.0 / value if value != 0 else 9.0 
                     st.markdown(f"**{elements[j]}** (Inverse: {inverse_val:.2f})")
                 
@@ -90,11 +87,12 @@ else:
 
     # --- Étape 3 : Affichage des Résultats ---
     if submitted:
-        # Reconstruire la matrice complète à partir des inputs (car Streamlit réexécute le script)
+        # Reconstruire la matrice complète à partir de st.session_state (plus fiable que le dictionnaire input_values)
         for i in range(n):
             for j in range(i + 1, n):
                 key_id = f"input_{i}_{j}"
-                value = input_values[key_id]
+                # La valeur est stockée dans st.session_state[key_id]
+                value = st.session_state[key_id]
                 matrix[i, j] = value
                 matrix[j, i] = 1.0 / value  # Réciproque
 
